@@ -1,1 +1,32 @@
+#include "pins_arduino.h"
+#ifndef NOTES_H
+#define NOTES_H
 
+#define NOTE_G4  392
+#define NOTE_A4  440
+#define NOTE_B4  494
+#define NOTE_C5  523
+#define NOTE_D5  587
+#define NOTE_G5  784
+
+#endif
+
+#include "notes.h"
+
+#define BUZZER_PIN D0  // Définition de la broche du buzzer
+
+void startupSound() {
+  tone(BUZZER_PIN, NOTE_G4, 200);  // Premier bip court de 200 ms
+  delay(400);
+  tone(BUZZER_PIN, NOTE_B4, 200);  // Deuxième bip court de 200 ms
+  delay(400);
+  noTone(BUZZER_PIN);           // Silence après les bips
+}
+
+void setup() {
+  startupSound();  // Appel de la fonction au démarrage
+}
+
+void loop() {
+  // Rien à faire dans la boucle principale
+}
