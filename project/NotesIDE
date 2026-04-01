@@ -78,3 +78,44 @@ void loop() {
   // --- CODE FUTUR (MOTEURS / CAPTEURS) ICI ---
 
 }
+
+const int trig_pin = D2;
+const int echo_pin = D1;
+
+bool debug = true; // Niveau 2 : variable globale de debug
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(trig_pin, OUTPUT);
+  pinMode(echo_pin, INPUT);
+}
+
+// Niveau 1 : fonction qui mesure et retourne la distance en cm
+float getDistance() {
+  digitalWrite(trig_pin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig_pin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig_pin, LOW);
+
+  long duration = pulseIn(echo_pin, HIGH);
+  float distance = (duration * 0.0343) / 2;
+
+  return distance;
+}
+
+// Niveau 1 : fonction qui affiche la distance
+// Niveau 2 : affichage conditionnel selon la variable debug
+void displayDistance(float distance) {
+  if (debug) {
+    Serial.print("Distance: ");
+    Serial.print(distance);
+    Serial.println(" cm");
+  }
+}
+
+void loop() {
+  float distance = getDistance();
+  displayDistance(distance);
+  delay(1000);
+}
