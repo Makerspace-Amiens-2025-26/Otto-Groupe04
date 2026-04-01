@@ -1,81 +1,80 @@
-#include "pins_arduino.h"
+// Pas besoin de "pins_arduino.h" sur ESP32, les définitions sont natives
+#include <Arduino.h>
 
-// ================= NOTES =================
-#define NOTE_A4  440
-#define NOTE_B4  494
-#define NOTE_C5  523
+// --- CONFIGURATION DES PINS XIAO ESP32-C3 ---
+#define BUZZER_PIN 2     // D0 sur la XIAO ESP32-C3 est souvent le GPIO 2
+#define SWITCH_PIN 3     // D1 sur la XIAO ESP32-C3 est souvent le GPIO 3
+
+// --- NOTES ---
 #define NOTE_D5  587
-#define NOTE_E5  659
-#define NOTE_F5  698
+#define NOTE_FS5 740
 #define NOTE_G5  784
-#define NOTE_A5  880
-#define NOTE_B5  988
-#define NOTE_C6 1047
-#define NOTE_D6 1175
-#define NOTE_E6 1319
-#define NOTE_F6 1397
-#define NOTE_G6 1568
-#define NOTE_A6 1760
-#define NOTE_B6 1976
-#define NOTE_C7 2093
-#define NOTE_D7 2349
-#define NOTE_E7 2637
-#define NOTE_F7 2794
-#define NOTE_G7 3136
-#define NOTE_A7 3520
-#define NOTE_B7 3951
-
-// Notes diésées (#)
-#define NOTE_AS4 466  // A#4
-#define NOTE_CS5 554  // C#5
-#define NOTE_DS5 622  // D#5
-#define NOTE_FS5 740  // F#5
-#define NOTE_GS5 830  // G#5
-#define NOTE_AS5 932  // A#5
-#define NOTE_CS6 1109 // C#6
-#define NOTE_DS6 1245 // D#6
-#define NOTE_FS6 1480 // F#6
-#define NOTE_GS6 1661 // G#6
-#define NOTE_AS6 1865 // A#6
-#define NOTE_CS7 2217 // C#7
-#define NOTE_DS7 2489 // D#7
-#define NOTE_FS7 2960 // F#7
-#define NOTE_GS7 3322 // G#7
-
-#define BUZZER_PIN D0
+#define NOTE_A6  1760
+#define NOTE_B6  1976
+#define NOTE_C6  1047
+#define NOTE_DS6 1245
+#define NOTE_E6  1319
+#define NOTE_FS6 1480
+#define NOTE_G6  1568
+#define NOTE_A7  3520
+#define NOTE_B7  3951
+#define NOTE_C7  2093
+#define NOTE_D7  2349
+#define NOTE_E7  2637
+#define NOTE_F7  2794
+#define NOTE_DS7 2489
 
 int melody[] = {
-  NOTE_D5, NOTE_D5, NOTE_FS5, NOTE_G5,
-  NOTE_FS5, NOTE_FS5, NOTE_G5, NOTE_A6,
-  NOTE_A6, NOTE_A6, NOTE_B6, NOTE_C6,
-  NOTE_B6, NOTE_DS6, NOTE_E6, NOTE_FS6,
-  NOTE_E6, NOTE_FS6, NOTE_G6, NOTE_A7,
-  NOTE_B7, NOTE_B7, NOTE_C7, NOTE_D7,
+  NOTE_D5, NOTE_D5, NOTE_FS5, NOTE_G5, NOTE_FS5, NOTE_FS5, NOTE_G5, NOTE_A6,
+  NOTE_A6, NOTE_A6, NOTE_B6, NOTE_C6, NOTE_B6, NOTE_DS6, NOTE_E6, NOTE_FS6,
+  NOTE_E6, NOTE_FS6, NOTE_G6, NOTE_A7, NOTE_B7, NOTE_B7, NOTE_C7, NOTE_D7,
   NOTE_C7, NOTE_C7, NOTE_E7, NOTE_F7,
-  NOTE_D7, NOTE_DS7, NOTE_E7
 };
 
 int durations[] = {
-  400, 400, 400, 400,
-  400, 400, 400, 400,
-  400, 400, 400, 400,
-  400, 400, 400, 400,
-  400, 400, 400, 400,
-  400, 400, 400, 400,
-  400, 400, 400, 400,
-  400, 400, 600
+  400, 400, 400, 400, 400, 400, 400, 400,
+  400, 400, 400, 400, 400, 400, 400, 400,
+  400, 400, 400, 400, 400, 400, 400, 400,
+  400, 400, 400, 400, 400, 400, 600
 };
 
-void playMelody() {
-  for (int i = 0; i < 31; i++) {
-    tone(D0, melody[i], durations[i]);
-    delay(durations[i] + 50); // petit espace entre les notes
-  } // <-- closing for loop
-} // <-- closing playMelody function
+int currentNote = 0;
+unsigned long previousMillis = 0;
+bool musicActive = true;
+const int totalNotes = 31;
 
 void setup() {
-  playMelody();
+  Serial.begin(115200);
+  
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(SWITCH_PIN, INPUT_PULLUP); 
+
+  // Désactivation immédiate si le switch est déjà activé
+  if (digitalRead(SWITCH_PIN) == LOW) {
+    musicActive = false;
+    Serial.println("Musique desactivee au demarrage");
+  }
 }
 
 void loop() {
+  // Lecture du bouton pour stopper la musique
+  if (digitalRead(SWITCH_PIN) == LOW && musicActive) {
+    musicActive = false;
+    noTone(BUZZER_PIN);
+    Serial.println("Musique stoppee par l'utilisateur");
+  }
+
+  // Jouer la mélodie sans bloquer le reste
+  if (musicActive && currentNote < totalNotes) {
+    unsigned long currentMillis = millis();
+    
+    if (currentMillis - previousMillis >= (durations[currentNote] + 50)) {
+      previousMillis = currentMillis;
+      tone(BUZZER_PIN, melody[currentNote], durations[currentNote]);
+      currentNote++;
+    }
+  }
+
+  // --- CODE FUTUR (MOTEURS / CAPTEURS) ICI ---
+
 }
