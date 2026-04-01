@@ -275,3 +275,138 @@ void loop() {
 
   delay(1000);
 }
+
+
+
+______________________________________________________________________________________________________________________________________________________________________________
+
+
+#include <Arduino.h>
+#include <ESP32Servo.h>
+
+// ================== PARTIE 1 : BUZZER ==================
+#define BUZZER_PIN D2
+#define SWITCH_PIN D3
+
+#define NOTE_D5  587
+#define NOTE_FS5 740
+#define NOTE_G5  784
+#define NOTE_A6  1760
+#define NOTE_B6  1976
+#define NOTE_C6  1047
+#define NOTE_DS6 1245
+#define NOTE_E6  1319
+#define NOTE_FS6 1480
+#define NOTE_G6  1568
+#define NOTE_A7  3520
+#define NOTE_B7  3951
+#define NOTE_C7  2093
+#define NOTE_D7  2349
+#define NOTE_E7  2637
+#define NOTE_F7  2794
+#define NOTE_DS7 2489
+
+int melody[] = {
+  NOTE_D5, NOTE_D5, NOTE_FS5, NOTE_G5, NOTE_FS5, NOTE_FS5, NOTE_G5, NOTE_A6,
+  NOTE_A6, NOTE_A6, NOTE_B6, NOTE_C6, NOTE_B6, NOTE_DS6, NOTE_E6, NOTE_FS6,
+  NOTE_E6, NOTE_FS6, NOTE_G6, NOTE_A7, NOTE_B7, NOTE_B7, NOTE_C7, NOTE_D7,
+  NOTE_C7, NOTE_C7, NOTE_E7, NOTE_F7,
+};
+
+int durations[] = {
+  400, 400, 400, 400, 400, 400, 400, 400,
+  400, 400, 400, 400, 400, 400, 400, 400,
+  400, 400, 400, 400, 400, 400, 400, 400,
+  400, 400, 400, 400, 400, 400, 600
+};
+
+int currentNote = 0;
+unsigned long previousMillis = 0;
+bool musicActive = true;
+const int totalNotes = 31;
+
+// ================== PARTIE 2 : CAPTEUR ==================
+const int trig_pin = D2;
+const int echo_pin = D1;
+bool debug = true;
+
+// ================== PARTIE 3 : SERVOS ==================
+Servo servo1;
+Servo servo2;
+Servo servo3;
+Servo servo4;
+
+// ================== SETUP UNIQUE ==================
+void setup() {
+  Serial.begin(115200);
+
+  // buzzer
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(SWITCH_PIN, INPUT_PULLUP);
+
+  if (digitalRead(SWITCH_PIN) == LOW) {
+    musicActive = false;
+  }
+
+  // capteur
+  pinMode(trig_pin, OUTPUT);
+  pinMode(echo_pin, INPUT);
+
+  // servos
+  servo1.attach(D7);
+  servo2.attach(D8);
+  servo3.attach(D9);
+  servo4.attach(D10);
+}
+
+// ================== FONCTIONS ==================
+float getDistance() {
+  digitalWrite(trig_pin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig_pin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig_pin, LOW);
+
+  long duration = pulseIn(echo_pin, HIGH);
+  return (duration * 0.0343) / 2;
+}
+
+void displayDistance(float distance) {
+  if (debug) {
+    Serial.print("Distance: ");
+    Serial.print(distance);
+    Serial.println(" cm");
+  }
+}
+
+// ================== LOOP UNIQUE ==================
+void loop() {
+
+  // --- BUZZER ---
+  if (digitalRead(SWITCH_PIN) == LOW && musicActive) {
+    musicActive = false;
+    noTone(BUZZER_PIN);
+  }
+
+  if (musicActive && currentNote < totalNotes) {
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - previousMillis >= (durations[currentNote] + 50)) {
+      previousMillis = currentMillis;
+      tone(BUZZER_PIN, melody[currentNote], durations[currentNote]);
+      currentNote++;
+    }
+  }
+
+  // --- CAPTEUR ---
+  float distance = getDistance();
+  displayDistance(distance);
+
+  // --- SERVOS ---
+  servo1.write(90);
+  servo2.write(90);
+  servo3.write(90);
+  servo4.write(90);
+
+  delay(1000);
+}
