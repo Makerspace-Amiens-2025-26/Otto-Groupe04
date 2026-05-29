@@ -1,133 +1,255 @@
-#include <Arduino.h>
 #include <ESP32Servo.h>
 
-// ================== PARTIE 1 : BUZZER ==================
-#define BUZZER_PIN D2
-#define SWITCH_PIN D3
+// ================== REMOTEXY ==================
+#define REMOTEXY__DEBUGLOG  
+#define REMOTEXY_MODE__ESP32CORE_BLE
 
-#define NOTE_D5  587
-#define NOTE_FS5 740
-#define NOTE_G5  784
-#define NOTE_A6  1760
-#define NOTE_B6  1976
-#define NOTE_C6  1047
-#define NOTE_DS6 1245
-#define NOTE_E6  1319
-#define NOTE_FS6 1480
-#define NOTE_G6  1568
-#define NOTE_A7  3520
-#define NOTE_B7  3951
-#define NOTE_C7  2093
-#define NOTE_D7  2349
-#define NOTE_E7  2637
-#define NOTE_F7  2794
-#define NOTE_DS7 2489
+#include <BLEDevice.h>
+#include <ESP32Servo.h>
 
-int melody[] = {
-  NOTE_D5, NOTE_D5, NOTE_FS5, NOTE_G5, NOTE_FS5, NOTE_FS5, NOTE_G5, NOTE_A6,
-  NOTE_A6, NOTE_A6, NOTE_B6, NOTE_C6, NOTE_B6, NOTE_DS6, NOTE_E6, NOTE_FS6,
-  NOTE_E6, NOTE_FS6, NOTE_G6, NOTE_A7, NOTE_B7, NOTE_B7, NOTE_C7, NOTE_D7,
-  NOTE_C7, NOTE_C7, NOTE_E7, NOTE_F7,
+#define REMOTEXY_BLUETOOTH_NAME "HK"
+#define REMOTEXY_ACCESS_PASSWORD "silksong"
+
+#include <RemoteXY.h>
+
+#pragma pack(push, 1)  
+uint8_t const PROGMEM RemoteXY_CONF_PROGMEM[] =   // 80 bytes V19
+  { 255,5,0,0,0,73,0,19,0,0,0,77,105,110,105,116,116,111,0,6,
+  2,106,200,200,84,1,1,4,0,3,30,7,16,44,37,24,38,7,134,2,
+  26,5,32,60,60,60,121,15,57,57,32,2,26,31,1,6,120,24,24,61,
+  41,24,24,0,2,31,0,1,48,131,24,24,28,41,24,24,0,2,31,0 };
+
+struct {
+  uint8_t selectorSwitch_01; // from 0 to 5 (A à F)
+  int8_t  joystick_01_x;     // from -100 to 100
+  int8_t  joystick_01_y;     // from -100 to 100
+  uint8_t button_01;         // =1 if button pressed, else =0
+  uint8_t button_02;         // =1 if button pressed, else =0
+  uint8_t connect_flag;      // =1 if connected, else =0
+} RemoteXY;
+#pragma pack(pop)
+
+// ================== SERVOS ==================
+Servo L_LEG;
+Servo R_LEG;
+Servo L_FOOT;
+Servo R_FOOT;
+
+const int OFFSET_L_LEG  =   0;
+const int OFFSET_R_LEG  = +45;
+const int OFFSET_L_FOOT = +20;
+const int OFFSET_R_FOOT =   0;
+
+int pos_L_LEG  = 90 + OFFSET_L_LEG;
+int pos_R_LEG  = 90 + OFFSET_R_LEG;
+int pos_L_FOOT = 90 + OFFSET_L_FOOT;
+int pos_R_FOOT = 90 + OFFSET_R_FOOT;
+
+// ================== VITESSE SELON JAUGE ==================
+// Retourne {stepDelay, pauseDelay}
+// A (0) = lent  →  F (5) = rapide
+struct SpeedProfile {
+  int stepDelay;   // délai entre chaque degré de servo
+  int pauseDelay;  // délai entre chaque phase de mouvement
 };
 
-int durations[] = {
-  400, 400, 400, 400, 400, 400, 400, 400,
-  400, 400, 400, 400, 400, 400, 400, 400,
-  400, 400, 400, 400, 400, 400, 400, 400,
-  400, 400, 400, 400
-};
-
-int currentNote = 0;
-unsigned long previousMillis = 0;
-bool musicActive = true;
-const int totalNotes = 28; //
-
-// ================== PARTIE 2 : CAPTEUR ==================
-const int trig_pin = D4; // 
-const int echo_pin = D1;
-bool debug = true;
-
-unsigned long lastSensorMillis = 0;
-const int sensorInterval = 100; // 
-
-// ================== PARTIE 3 : SERVOS ==================
-Servo servo1;
-Servo servo2;
-Servo servo3;
-Servo servo4;
-
-// ================== SETUP UNIQUE ==================
-void setup() {
-  Serial.begin(115200);
-
-  // buzzer
-  pinMode(BUZZER_PIN, OUTPUT);
-  pinMode(SWITCH_PIN, INPUT_PULLUP);
-
-  if (digitalRead(SWITCH_PIN) == LOW) {
-    musicActive = false;
-  }
-
-  // capteur
-  pinMode(trig_pin, OUTPUT);
-  pinMode(echo_pin, INPUT);
-
-  // servos
-  servo1.attach(D7);
-  servo2.attach(D8);
-  servo3.attach(D9);
-  servo4.attach(D10);
-
-  // Initialisation des servos à 90°
-  servo1.write(90);
-  servo2.write(90);
-  servo3.write(90);
-  servo4.write(90);
-}
-
-// ================== FONCTIONS ==================
-float getDistance() {
-  digitalWrite(trig_pin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trig_pin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trig_pin, LOW);
-
-  long duration = pulseIn(echo_pin, HIGH);
-  return (duration * 0.0343) / 2;
-}
-
-void displayDistance(float distance) {
-  if (debug) {
-    Serial.print("Distance: ");
-    Serial.print(distance);
-    Serial.println(" cm");
+SpeedProfile getSpeed() {
+  switch (RemoteXY.selectorSwitch_01) {
+    case 0: return {20, 120};  // A — très lent
+    case 1: return {16,  95};  // B
+    case 2: return {12,  70};  // C
+    case 3: return { 9,  50};  // D
+    case 4: return { 6,  30};  // E
+    case 5: return { 3,  10};  // F — très rapide
+    default: return {10,  60};
   }
 }
 
-// ================== LOOP UNIQUE ==================
-void loop() {
-
-  // --- BUZZER ---
-  if (digitalRead(SWITCH_PIN) == LOW && musicActive) {
-    musicActive = false;
-    noTone(BUZZER_PIN);
-  }
-
-  if (musicActive && currentNote < totalNotes) {
-    unsigned long currentMillis = millis();
-
-    if (currentMillis - previousMillis >= (durations[currentNote] + 50)) {
-      previousMillis = currentMillis;
-      tone(BUZZER_PIN, melody[currentNote], durations[currentNote]);
-      currentNote++;
+// ================== MOUVEMENT SIMPLE ==================
+void moveSlow(Servo &servo, int &currentPos, int target, int stepDelay) {
+  if (currentPos < target) {
+    for (int i = currentPos; i <= target; i++) {
+      servo.write(i);
+      RemoteXY_delay(stepDelay);
+      yield();
+    }
+  } else {
+    for (int i = currentPos; i >= target; i--) {
+      servo.write(i);
+      RemoteXY_delay(stepDelay);
+      yield();
     }
   }
+  currentPos = target;
+}
 
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastSensorMillis >= sensorInterval) {
-    lastSensorMillis = currentMillis;
-    float distance = getDistance();
-    displayDistance(distance);
+// ================== MOUVEMENT SIMULTANÉ 2 SERVOS ==================
+void moveSlowDuo(Servo &s1, int &p1, int t1,
+                 Servo &s2, int &p2, int t2,
+                 int stepDelay) {
+  int steps = max(abs(t1 - p1), abs(t2 - p2));
+  for (int i = 0; i <= steps; i++) {
+    if (p1 != t1) { p1 += (t1 > p1) ? 1 : -1; s1.write(p1); }
+    if (p2 != t2) { p2 += (t2 > p2) ? 1 : -1; s2.write(p2); }
+    RemoteXY_delay(stepDelay);
+    yield();
+  }
+}
+
+// ================== MOUVEMENT SIMULTANÉ 3 SERVOS ==================
+void moveSlowTrio(Servo &s1, int &p1, int t1,
+                  Servo &s2, int &p2, int t2,
+                  Servo &s3, int &p3, int t3,
+                  int stepDelay) {
+  int steps = max({abs(t1 - p1), abs(t2 - p2), abs(t3 - p3)});
+  for (int i = 0; i <= steps; i++) {
+    if (p1 != t1) { p1 += (t1 > p1) ? 1 : -1; s1.write(p1); }
+    if (p2 != t2) { p2 += (t2 > p2) ? 1 : -1; s2.write(p2); }
+    if (p3 != t3) { p3 += (t3 > p3) ? 1 : -1; s3.write(p3); }
+    RemoteXY_delay(stepDelay);
+    yield();
+  }
+}
+
+// ================== SETUP ==================
+void setup() {
+  RemoteXY_Init();
+  Serial.begin(115200);
+
+  L_LEG.attach(D7);
+  L_FOOT.attach(D8);
+  R_FOOT.attach(D9);
+  R_LEG.attach(D10);
+
+  RemoteXY_delay(500);
+  initialisation();
+  RemoteXY_delay(2000);
+}
+
+// ================== INITIALISATION ==================
+void initialisation() {
+  Serial.println("=== INITIALISATION ===");
+
+  pos_L_LEG  = 90 + OFFSET_L_LEG;
+  pos_R_LEG  = 90 + OFFSET_R_LEG;
+  pos_L_FOOT = 90 + OFFSET_L_FOOT;
+  pos_R_FOOT = 90 + OFFSET_R_FOOT;
+
+  L_LEG.write(pos_L_LEG);   RemoteXY_delay(400); yield();
+  R_LEG.write(pos_R_LEG);   RemoteXY_delay(400); yield();
+  L_FOOT.write(pos_L_FOOT); RemoteXY_delay(400); yield();
+  R_FOOT.write(pos_R_FOOT); RemoteXY_delay(400); yield();
+
+  Serial.println("Prêt.");
+}
+
+// ================== PAS DROIT ==================
+void pasDroit(int amplitude, int balance) {
+  Serial.println("--- PAS DROIT ---");
+  SpeedProfile sp = getSpeed();
+
+  // 1 — Lever le pied droit
+  moveSlow(R_FOOT, pos_R_FOOT, 90 + OFFSET_R_FOOT - 30, sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+
+  // 2 — Rotation jambes + équilibre pied gauche
+  moveSlowTrio(L_LEG,  pos_L_LEG,  90 + OFFSET_L_LEG  + amplitude,
+               R_LEG,  pos_R_LEG,  90 + OFFSET_R_LEG  + amplitude,
+               L_FOOT, pos_L_FOOT, 90 + OFFSET_L_FOOT - balance,
+               sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+
+  // 3 — Poser pied droit + ramener pied gauche au neutre
+  moveSlowDuo(R_FOOT, pos_R_FOOT, 90 + OFFSET_R_FOOT,
+              L_FOOT, pos_L_FOOT, 90 + OFFSET_L_FOOT,
+              sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+}
+
+// ================== PAS GAUCHE ==================
+void pasGauche(int amplitude, int balance) {
+  Serial.println("--- PAS GAUCHE ---");
+  SpeedProfile sp = getSpeed();
+
+  // 1 — Lever le pied gauche
+  moveSlow(L_FOOT, pos_L_FOOT, 90 + OFFSET_L_FOOT + 30, sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+
+  // 2 — Rotation jambes + équilibre pied droit
+  moveSlowTrio(L_LEG,  pos_L_LEG,  90 + OFFSET_L_LEG  - amplitude,
+               R_LEG,  pos_R_LEG,  90 + OFFSET_R_LEG  - amplitude,
+               R_FOOT, pos_R_FOOT, 90 + OFFSET_R_FOOT + balance,
+               sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+
+  // 3 — Poser pied gauche + ramener pied droit au neutre
+  moveSlowDuo(L_FOOT, pos_L_FOOT, 90 + OFFSET_L_FOOT,
+              R_FOOT, pos_R_FOOT, 90 + OFFSET_R_FOOT,
+              sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+}
+
+// ================== PAS ARRIÈRE ==================
+void pasArriereDroit(int amplitude, int balance) {
+  Serial.println("--- PAS ARRIÈRE DROIT ---");
+  SpeedProfile sp = getSpeed();
+
+  // 1 — Lever le pied droit (identique à pasDroit)
+  moveSlow(R_FOOT, pos_R_FOOT, 90 + OFFSET_R_FOOT - 30, sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+
+  // 2 — Rotation jambes INVERSÉE, pieds inchangés
+  moveSlowTrio(L_LEG,  pos_L_LEG,  90 + OFFSET_L_LEG  - amplitude,
+               R_LEG,  pos_R_LEG,  90 + OFFSET_R_LEG  - amplitude,
+               L_FOOT, pos_L_FOOT, 90 + OFFSET_L_FOOT - balance,
+               sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+
+  // 3 — Poser pied droit + neutre pied gauche (identique à pasDroit)
+  moveSlowDuo(R_FOOT, pos_R_FOOT, 90 + OFFSET_R_FOOT,
+              L_FOOT, pos_L_FOOT, 90 + OFFSET_L_FOOT,
+              sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+}
+
+void pasArriereGauche(int amplitude, int balance) {
+  Serial.println("--- PAS ARRIÈRE GAUCHE ---");
+  SpeedProfile sp = getSpeed();
+
+  // 1 — Lever le pied gauche (identique à pasGauche)
+  moveSlow(L_FOOT, pos_L_FOOT, 90 + OFFSET_L_FOOT + 30, sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+
+  // 2 — Rotation jambes INVERSÉE, pieds inchangés
+  moveSlowTrio(L_LEG,  pos_L_LEG,  90 + OFFSET_L_LEG  + amplitude,
+               R_LEG,  pos_R_LEG,  90 + OFFSET_R_LEG  + amplitude,
+               R_FOOT, pos_R_FOOT, 90 + OFFSET_R_FOOT + balance,
+               sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+
+  // 3 — Poser pied gauche + neutre pied droit (identique à pasGauche)
+  moveSlowDuo(L_FOOT, pos_L_FOOT, 90 + OFFSET_L_FOOT,
+              R_FOOT, pos_R_FOOT, 90 + OFFSET_R_FOOT,
+              sp.stepDelay);
+  RemoteXY_delay(sp.pauseDelay);
+}
+// ================== LOOP ==================
+void loop() {
+  RemoteXY_Handler();
+
+  // Joystick Y vers le haut → avancer
+  if (RemoteXY.joystick_01_y > 30) {
+    pasDroit(40, 25);
+    pasGauche(40, 25);
+  }
+ // Joystick Y vers le bas → reculer
+  else if (RemoteXY.joystick_01_y < -30) {
+    pasArriereDroit(40, 25);
+    pasArriereGauche(40, 25);
+  }
+  // Joystick neutre → position initiale
+  else if (RemoteXY.joystick_01_y >= -30 && RemoteXY.joystick_01_y <= 30
+        && RemoteXY.joystick_01_x >= -30 && RemoteXY.joystick_01_x <= 30) {
+    initialisation();
   }
 }
