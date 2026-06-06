@@ -7,14 +7,26 @@ permalink: /
 
 # Otto-MKS — Groupe 04
 
-Bienvenue sur la documentation du projet Otto-MKS réalisé par le Groupe 04 dans le cadre du MakerSpace d'UniLaSalle Amiens.
+Bienvenue sur la documentation du projet Otto-MKS réalisé par le **Groupe 04** dans le cadre du MakerSpace d'UniLaSalle Amiens.
 
-[Notre projet sur Onshape](#){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+**Membres du groupe :**
+- Simon Bacquet Leroux
+- Mattheo Gaillard
+- Victor de Castelnau
+
+[Notre projet sur Onshape](https://cad.onshape.com/documents/dc2aca01fe742e8085016c10/w/add9737cc5fec3410f20bf62/e/b48b7d90dc361639b8b7c192){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [Notre repo GitHub](https://github.com/Makerspace-Amiens-2025-26/Otto-Groupe04){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ## À propos du Projet
 
-Otto-MKS est un robot humanoïde bipède open-source, adapté et fabriqué au MakerSpace d'UniLaSalle Amiens. Notre groupe a conçu et assemblé sa propre version d'Otto, en modifiant certaines pièces et en programmant des comportements personnalisés. Le robot est piloté par un ESP32 et peut marcher, éviter des obstacles grâce à un capteur ultrason, et être contrôlé en Bluetooth ou WiFi.
+Otto-MKS est un robot humanoïde bipède open-source, adapté et fabriqué au MakerSpace d'UniLaSalle Amiens. Notre groupe a conçu et assemblé sa propre version d'Otto, en modifiant certaines pièces et en programmant des comportements personnalisés. Le robot est piloté par un **ESP32** et peut marcher, éviter des obstacles grâce à un capteur ultrason HC-SR04, et être contrôlé à distance via **Bluetooth ou WiFi** avec l'application RemoteXY.
+
+## Notre modèle 3D
+
+<iframe height="600" width="100%" src="https://cad.onshape.com/documents/dc2aca01fe742e8085016c10/w/add9737cc5fec3410f20bf62/e/b48b7d90dc361639b8b7c192" frameborder="0"></iframe>
+
+{: .note }
+> Pour visualiser le modèle interactif, activez le partage par lien sur Onshape puis générez un embed via [modelembedder.net](https://modelembedder.net) et remplacez l'iframe ci-dessus.
 
 ## Poster
 
