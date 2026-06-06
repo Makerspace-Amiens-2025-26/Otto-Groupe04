@@ -23,14 +23,7 @@ Otto-MKS est un robot humanoïde bipède open-source, adapté et fabriqué au Ma
 
 ## Notre modèle 3D
 
-<iframe height="600" width="100%" src="https://cad.onshape.com/documents/dc2aca01fe742e8085016c10/w/add9737cc5fec3410f20bf62/e/b48b7d90dc361639b8b7c192" frameborder="0"></iframe>
-
-{: .note }
-> Pour visualiser le modèle interactif, activez le partage par lien sur Onshape puis générez un embed via [modelembedder.net](https://modelembedder.net) et remplacez l'iframe ci-dessus.
-
-## Poster
-
-![Poster projet](images/poster.jpg)
+<iframe height="600" width="100%" src="https://modelembedder.net/embed?did=dc2aca01fe742e8085016c10&wvm=v&wvmid=b7d139e8e17be549f063f23a&eid=b48b7d90dc361639b8b7c192&elementType=ASSEMBLY" frameborder="0"></iframe>
 
 ## Vidéo
 
